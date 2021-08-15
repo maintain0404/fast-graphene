@@ -1,14 +1,11 @@
-from typing import Callable
-from typing import List
-from typing import Optional
-from typing import Tuple
+from typing import Callable, List, Optional, Tuple
 
-from graphene.types import Argument
+from graphene import types as gpt
 
-from .utils import SetDict
+from .utils import FastGrapheneException, SetDict
 
 
-class CircularDependencyException(Exception):
+class CircularDependencyException(FastGrapheneException):
     pass
 
 
@@ -17,7 +14,7 @@ class Dependency:
         self,
         func: Callable,
         dependencies: Optional[List["Dependency"]] = None,
-        arguments: Optional[List[Argument]] = None,
+        arguments: Optional[List[gpt.Argument]] = None,
     ):
         self.func: Callable = func
         # TODO: Let to collect params, dependencies and arguments at once.
@@ -59,7 +56,7 @@ class DependencyTreeVisitor:
         self._arguments, self._error = self.traverse_depends(self.root, [])
 
     @property
-    def is_circular(self):
+    def is_circular(self) -> bool:
         if not getattr(self, "_error", None):
             self.traverse()
         else:
@@ -69,13 +66,13 @@ class DependencyTreeVisitor:
                 return False
 
     @property
-    def error(self):
+    def error(self) -> FastGrapheneException:
         if not getattr(self, "_error", None):
             self.traverse()
         return self._error
 
     @property
-    def arguments(self):
+    def arguments(self) -> List[gpt.Argument]:
         if not getattr(self, "_arguments"):
             self.traverse()
         return self._arguments

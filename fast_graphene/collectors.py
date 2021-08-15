@@ -1,9 +1,5 @@
 import inspect
-from typing import Callable
-from typing import GenericAlias
-from typing import List
-from typing import Mapping
-from typing import Tuple
+from typing import Callable, GenericAlias, List, Mapping, Tuple
 
 from graphene.types import Argument
 

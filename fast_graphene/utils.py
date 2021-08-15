@@ -1,11 +1,16 @@
 from collections import UserDict
 from copy import deepcopy
-from typing import AbstractSet
-from typing import Any
-from typing import Dict
-from typing import Hashable
-from typing import List
-from typing import Mapping
+from typing import (
+    AbstractSet,
+    Any,
+    Dict,
+    Hashable,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Type
+)
 
 
 class SetDict(UserDict, AbstractSet):
@@ -44,3 +49,19 @@ class SetDict(UserDict, AbstractSet):
         return new_setdict
 
     __radd__ = __add__
+
+
+class FastGrapheneException(Exception):
+    pass
+
+
+class GrapheneTypeTreeNode:
+    def __init__(self, type_: Type, children: Optional[Iterable[Type]] = None):
+        self.type_: Type = type_
+        self.children: Iterable[GrapheneTypeTreeNode] = children or []
+
+    def compile(self):
+        if self.children:
+            return self.type_(*(child.compile() for child in self.children))
+        else:
+            return self.type_
