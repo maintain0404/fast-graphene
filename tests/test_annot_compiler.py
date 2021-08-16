@@ -4,9 +4,9 @@ from typing import List, Optional
 import pytest
 from graphene import types as gpt
 
-from fast_graphene.annot_compiler import TypeCompiler
+from fast_graphene.annot_compiler import AnnotCompiler
 
-type_compiler = TypeCompiler()
+annot_compiler = AnnotCompiler()
 
 
 @pytest.mark.parametrize(
@@ -20,7 +20,7 @@ type_compiler = TypeCompiler()
 def test_transfiler(annotation):
     origin, expected = annotation
 
-    compiled = type_compiler.compile(origin)
+    compiled = annot_compiler.compile(origin)
     assert compiled == expected
 
 
@@ -38,6 +38,6 @@ class TestEnum(Enum):
 def test_transfiler_enum(annotation):
     origin, expected = annotation
 
-    transfiled = type_compiler.compile(origin)
+    transfiled = annot_compiler.compile(origin)
     for name in transfiled._meta.enum.__members__.keys():
         assert getattr(expected, name, False)

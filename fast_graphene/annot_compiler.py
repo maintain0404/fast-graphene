@@ -3,21 +3,13 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 from inspect import isfunction
-from typing import (
-    Callable,
-    Dict,
-    get_args,
-    get_origin,
-    List,
-    Optional,
-    Tuple,
-    Union
-)
+from typing import Callable, Dict, get_args, get_origin, List, Optional, Tuple, Union
 
 from graphene import types as gpt
 
 from .types import Annotation, Context, GrapheneType
-from .utils import FastGrapheneException, GrapheneTypeTreeNode
+from .utils import GrapheneTypeTreeNode
+from .errors import FastGrapheneException
 
 
 def compile_union(
@@ -68,13 +60,6 @@ def compile_enum(
     return gpt.Enum.from_enum(annotation), []
 
 
-def always_return(type_: GrapheneType):
-    def inner(*args, **kwargs):
-        return type_
-
-    return inner
-
-
 DEFAULT_ANNOT_MAP = {
     Union: compile_union,
     List: compile_list,
@@ -95,7 +80,7 @@ DEFAULT_SUBCLS_ANNOT_MAP = {
 }
 
 
-class TypeCompiler:
+class AnnotCompiler:
     def __init__(
         self,
         annot_map=None,

@@ -9,7 +9,7 @@ from typing import (
     List,
     Mapping,
     Optional,
-    Type
+    Type,
 )
 
 
@@ -49,10 +49,6 @@ class SetDict(UserDict, AbstractSet):
         return new_setdict
 
     __radd__ = __add__
-
-
-class FastGrapheneException(Exception):
-    pass
 
 
 class GrapheneTypeTreeNode:

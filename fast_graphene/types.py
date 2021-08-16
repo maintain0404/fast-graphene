@@ -1,28 +1,23 @@
 from typing import (
-    _CallableType,
     _GenericAlias,
     _SpecialForm,
     _TypedDictMeta,
     Any,
     Callable,
-    GenericAlias,
     List,
     Literal,
     Optional,
     Tuple,
-    Type,
     TypedDict,
     TypeVar,
-    Union
+    Union,
 )
-
-Hint = Union[Type, GenericAlias]
+from enum import Enum
 
 
 Annotation = Union[
     type,
     _SpecialForm,  # Union, Any, Optional, List
-    _CallableType,  # Callable
     TypeVar,
     _TypedDictMeta,  # TypedDict
     _GenericAlias,  # Tuple
@@ -30,6 +25,13 @@ Annotation = Union[
 
 
 GrapheneType = Any
+
+
+class ContextType(Enum):
+    ARGUMENT = "argument"
+    FIELD = "field"
+    MUTATION = "mutation"
+    INPUT_FIELD = "input_field"
 
 
 class Context(TypedDict):

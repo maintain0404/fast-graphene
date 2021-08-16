@@ -1,15 +1,17 @@
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
+from fast_graphene.dependencies import Dependency, DependencyTreeVisitor
 from functools import wraps
 from inspect import Parameter, signature, Signature
 from typing import Any, Callable, Dict, Optional, Type, Union
 
 from graphene import types as gpt
 
-from .annot_compiler import TypeCompiler
+from .annot_compiler import AnnotCompiler
 from .types import Annotation, GrapheneType
-from .utils import FastGrapheneException, SetDict
+from .utils import SetDict
+from .errors import FastGrapheneException
 
 DEFAULT_SCALAR_MAP = {
     int: gpt.Int,
@@ -30,19 +32,21 @@ class ContextEnum(Enum):
 class Builder:
     def __init__(
         self,
-        include_parent: bool = True,
-        include_info: bool = True,
+        # TODO: Add later
+        # include_parent: bool = True,
+        # include_info: bool = True,
         annot_map=None,
         subcls_annot_map=None,
     ):
-        self.include_parent: bool = include_parent
-        self.include_info: bool = include_info
-        self.type_compiler = TypeCompiler(annot_map, subcls_annot_map)
+        # TODO: Add later
+        # self.include_parent: bool = include_parent
+        # self.include_info: bool = include_info
+        self.annot_compiler = AnnotCompiler(annot_map, subcls_annot_map)
 
     def compile_type_hint(self, hint, context=None):
-        return self.type_compiler.compile(hint, context=context)
+        return self.annot_compiler.compile(hint, context=context)
 
-    def fast_graphene(
+    def field(
         self,
         func: Optional[Callable] = None,
         *,
@@ -70,18 +74,31 @@ class Builder:
             if not return_type:
                 return_type = self._compile_return(func, sig)
 
+            param_cnt = 0
             # Check with params.
             for name, param in params.items():
+                # pass parent and info.
+                if param_cnt < 2:
+                    param_cnt += 1
+                    continue
                 default = param.default
                 annot = param.annotation
                 if annot is Parameter.empty:
                     annot = Any
                 # TODO: Check if argument instance is correct to hint.
-                if default is not Parameter.empty:
+                if default is not Parameter.empty and default is not isinstance(
+                    Dependency
+                ):
                     args[name] = self._copile_argument_with_default(func, default)
                 elif annot is not Any:
                     args[name] = self._compile_argument_with_annotation(func, annot)
                 # TODO: Implement Dependency.
+                elif default is isinstance(Dependency):
+                    visit_result = DependencyTreeVisitor.visit(default)
+                    if visit_result.error:
+                        raise visit_result.error
+                    dep_args = visit_result.arguments
+
                 else:
                     raise FastGrapheneException
 
@@ -109,7 +126,7 @@ class Builder:
             ret_annot = Any
         else:
             ret_annot = sig.return_annotation
-        return self.type_compiler.compile(
+        return self.annot_compiler.compile(
             annotation=ret_annot, context={"function": func, "type": ContextEnum.RETURN}
         )
 
@@ -119,7 +136,7 @@ class Builder:
         if isinstance(default, gpt.Argument):
             return default
         else:
-            gpt_type = self.type_compiler.compile(
+            gpt_type = self.annot_compiler.compile(
                 type(default),
                 context={
                     "function": func,
@@ -133,7 +150,7 @@ class Builder:
         func: Callable,
         annotation: Annotation,
     ) -> gpt.Argument:
-        gpt_type = self.type_compiler.compile(
+        gpt_type = self.annot_compiler.compile(
             annotation,
             context={
                 "function": func,

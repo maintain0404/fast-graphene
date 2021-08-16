@@ -1,14 +1,12 @@
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple, Any, Dict, Set
 
 from graphene import types as gpt
 
-from .utils import FastGrapheneException, SetDict
+from .utils import SetDict
+from .errors import FastGrapheneException, CircularDependencyException
 
 
-class CircularDependencyException(FastGrapheneException):
-    pass
-
-
+# Will be used later.
 class Dependency:
     def __init__(
         self,
@@ -22,15 +20,24 @@ class Dependency:
         self.dependencies = dependencies or []
         self.arguments = arguments or []
 
+    def __hash__(self):
+        return hash(self.func)
 
+
+# Will be used later.
 class DependencyTreeVisitor:
     def __init__(self, root_depend: Dependency):
         self.root: Dependency = root_depend
+        self.all: Set[Dependency] = set()
+
+    @classmethod
+    def visit(cls, root_depend: Dependency) -> "DependencyTreeVisitor":
+        return cls.__init__(root_depend)
 
     # TODO: self.dependencies를 확실하게 얻고 나서 실행되어야 함
     def traverse_depends(
-        self, to_visit: Dependency, visited: List[Callable]
-    ) -> Tuple[SetDict, List[CircularDependencyException]]:
+        self, to_visit: Dependency, visited: Set[Callable]
+    ) -> Tuple[Set[Dependency], SetDict, Optional[CircularDependencyException]]:
         arguments, error = SetDict(), None
         try:
             if to_visit.func in visited:
@@ -43,17 +50,19 @@ class DependencyTreeVisitor:
             else:
                 for dependency in to_visit.dependencies:
                     sub_arguments, sub_error = self.traverse_depends(
-                        dependency, visited + [to_visit.func]
+                        dependency, visited + {to_visit.func}
                     )
                     arguments.update(sub_arguments)
                     error = sub_error
         except CircularDependencyException as err:
             error = err
         finally:
-            return arguments, error
+            return visited, arguments, error
 
     def traverse(self) -> bool:
-        self._arguments, self._error = self.traverse_depends(self.root, [])
+        self.all, self._arguments, self._error = self.traverse_depends(
+            self.root, [], set()
+        )
 
     @property
     def is_circular(self) -> bool:
@@ -76,3 +85,30 @@ class DependencyTreeVisitor:
         if not getattr(self, "_arguments"):
             self.traverse()
         return self._arguments
+
+
+class DependentFunction:
+    def __init__(
+        self,
+        func: Callable,
+        dependencies: Optional[Set[Dependency]] = None
+        # TODO: Add later
+        # include_parent: bool = True,
+        # include_info: bool = True,
+    ):
+        self.func = func
+        self.dependencies = dependencies or set()
+        # TODO: Add later
+        # self.include_parent = include_parent
+        # self.include_info = include_info
+
+    def __call__(self, parent: Any, info: gpt.ResolveInfo, **kwargs):
+        pass
+
+    def collect_nested_dependencies(self, dependency: Dependency):
+        pass
+
+    def resolve_dependencies(
+        self, parent: Any, info: gpt.ResolveInfo, **kwargs
+    ) -> Dict[str, Any]:
+        pass
