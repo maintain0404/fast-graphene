@@ -1,9 +1,23 @@
-from typing import Callable, List, Optional, Tuple, Any, Dict, Set
+from asyncio import CancelledError, create_task, Event, gather, LifoQueue
+from copy import copy
+from inspect import (
+    isasyncgenfunction,
+    iscoroutinefunction,
+    isfunction,
+    isgeneratorfunction,
+)
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, NamedTuple
 
 from graphene import types as gpt
 
+from .annot_compiler import AnnotCompiler
+from .errors import CircularDependencyException, FastGrapheneException
+from .param_collector import collect_params, DependOn
 from .utils import SetDict
-from .errors import FastGrapheneException, CircularDependencyException
+
+
+class Empty:
+    pass
 
 
 # Will be used later.
@@ -11,104 +25,147 @@ class Dependency:
     def __init__(
         self,
         func: Callable,
-        dependencies: Optional[List["Dependency"]] = None,
-        arguments: Optional[List[gpt.Argument]] = None,
+        dependencies_map: Optional[Dict[str, "Dependency"]] = None,
+        arguments: Optional[Dict[str, gpt.Argument]] = None,
+        return_type: Optional[Any] = None,
     ):
         self.func: Callable = func
         # TODO: Let to collect params, dependencies and arguments at once.
         self.func = func
-        self.dependencies = dependencies or []
-        self.arguments = arguments or []
+        self.is_async_func = iscoroutinefunction(func)
+        self.is_async_gen = isasyncgenfunction(func)
+        self.is_sync_func = isfunction(func)
+        self.is_generator = isgeneratorfunction(func)
+        if not any(
+            (
+                self.is_async_func,
+                self.is_async_func,
+                self.is_sync_func,
+                self.is_generator,
+            )
+        ):
+            raise FastGrapheneException  # Invalidone
+        self.dependencies_map = dependencies_map or {}
+        self.dependencies = list(self.dependencies_map.values())
+        self.arguments = arguments or {}
+        self.return_type = return_type
+
+    def __eq__(self, other: "Dependency"):
+        return self.func is other.func
 
     def __hash__(self):
         return hash(self.func)
 
+    def __repr__(self):
+        return f"<Dependency uses {self.func}>"
 
-# Will be used later.
-class DependencyTreeVisitor:
-    def __init__(self, root_depend: Dependency):
-        self.root: Dependency = root_depend
-        self.all: Set[Dependency] = set()
+    def __call__(
+        self,
+        parent: Any,
+        info: gpt.ResolveInfo,
+        args: Dict[str, Any],
+        channel: "DependencyChannel",
+    ):
+        return self._call(parent, info, args, channel)
 
-    @classmethod
-    def visit(cls, root_depend: Dependency) -> "DependencyTreeVisitor":
-        return cls.__init__(root_depend)
-
-    # TODO: self.dependencies를 확실하게 얻고 나서 실행되어야 함
-    def traverse_depends(
-        self, to_visit: Dependency, visited: Set[Callable]
-    ) -> Tuple[Set[Dependency], SetDict, Optional[CircularDependencyException]]:
-        arguments, error = SetDict(), None
-        try:
-            if to_visit.func in visited:
-                raise CircularDependencyException(
-                    f"Dependency function {to_visit.func.__name__}"
-                    " is circular dependency."
-                )
-            elif not to_visit.dependencies:
-                arguments.update(to_visit.arguments)
-            else:
-                for dependency in to_visit.dependencies:
-                    sub_arguments, sub_error = self.traverse_depends(
-                        dependency, visited + {to_visit.func}
-                    )
-                    arguments.update(sub_arguments)
-                    error = sub_error
-        except CircularDependencyException as err:
-            error = err
-        finally:
-            return visited, arguments, error
-
-    def traverse(self) -> bool:
-        self.all, self._arguments, self._error = self.traverse_depends(
-            self.root, [], set()
-        )
-
-    @property
-    def is_circular(self) -> bool:
-        if not getattr(self, "_error", None):
-            self.traverse()
-        else:
-            if self._error:
-                return True
-            else:
-                return False
-
-    @property
-    def error(self) -> FastGrapheneException:
-        if not getattr(self, "_error", None):
-            self.traverse()
-        return self._error
-
-    @property
-    def arguments(self) -> List[gpt.Argument]:
-        if not getattr(self, "_arguments"):
-            self.traverse()
-        return self._arguments
+    async def _call(
+        self,
+        parent: Any,
+        info: gpt.ResolveInfo,
+        args: Dict[str, Any],
+        channel: "DependencyChannel",
+    ):
+        if self.dependencies:
+            dep_results = await gather([channel.get(dep) for dep in self.dependencies])
+        pass
 
 
-class DependentFunction:
+class DependencyChannel:
     def __init__(
         self,
-        func: Callable,
-        dependencies: Optional[Set[Dependency]] = None
-        # TODO: Add later
-        # include_parent: bool = True,
-        # include_info: bool = True,
+        dependencies: List[Dependency],
+        parent: Optional[Any] = None,
+        info: Optional[gpt.ResolveInfo] = None,
+        **kwargs,
     ):
-        self.func = func
-        self.dependencies = dependencies or set()
-        # TODO: Add later
-        # self.include_parent = include_parent
-        # self.include_info = include_info
+        self.dependencies = dependencies
+        self.results = {dependency: Empty for dependency in dependencies}
+        self.events = {dependency: Event() for dependency in dependencies}
+        self.generator_stack = LifoQueue()
+        self.parent = parent
+        self.info = info
+        self.kwargs = kwargs
 
-    def __call__(self, parent: Any, info: gpt.ResolveInfo, **kwargs):
-        pass
+    async def _execute(self, dependency: Dependency):
+        if dependency.is_async_func:
+            data = await dependency(self.parent, self.info, self.kwargs, self)
+        elif dependency.is_async_gen:
+            gen = dependency(self.parent, self.info, self.kwargs, self)
+            data = await gen
+            self.generator_stack.put(gen)
+        elif dependency.is_sync_func:
+            data = dependency(self.parent, self.info, self.kwargs, self)
+        elif dependency.is_generator:
+            gen = dependency(self.parent, self.info, self.kwargs, self)
+            data = next(gen)
+            self.generator_stack.put(gen)
 
-    def collect_nested_dependencies(self, dependency: Dependency):
-        pass
+        self.results[dependency] = data
+        self.events[dependency].set()
 
-    def resolve_dependencies(
-        self, parent: Any, info: gpt.ResolveInfo, **kwargs
-    ) -> Dict[str, Any]:
-        pass
+    async def get(self, dependency: Dependency):
+        if not self.events[dependency].is_set():
+            task = create_task(self._execute(dependency))
+            await self.events[dependency].wait()
+
+            try:
+                await task
+            except CancelledError as err:
+                pass
+            else:
+                if exception := task.exception():
+                    raise exception
+
+        return self.results[dependency]
+
+    async def release(self):
+        while not self.generator_stack.empty():
+            gen = await self.generator_stack.get()
+            if gen.is_async_gen:
+                await gen
+            else:
+                next(gen)
+
+
+class DependencyBuildResult(NamedTuple):
+    dependency: Dependency
+    flated_dependencies: Set[Dependency]
+    flated_arguments: SetDict
+
+
+def build_dependency_tree(
+    root_depend: Callable, annot_compiler: Optional[AnnotCompiler] = None
+) -> DependencyBuildResult:
+    annot_compiler = annot_compiler or AnnotCompiler()
+    flated_dependencies = set()
+    flated_arguments = SetDict()  # TODO: Check if arugment used in duplicate.
+
+    def traverse(func, accum_dependencies: set):
+        args, dep_funcs, _ = collect_params(func)
+        flated_arguments.update(args)
+
+        dependencies_map = {}
+        for name, dfn in dep_funcs.items():
+            added_set = copy(accum_dependencies)
+            added_set.add(dfn)
+            dependency = traverse(dfn, added_set)
+            dependencies_map[name] = dependency
+            flated_dependencies.add(dependency)
+
+        return Dependency(func, arguments=args, dependencies_map=dependencies_map)
+
+    return DependencyBuildResult(
+        dependency=traverse(root_depend, set()),
+        flated_dependencies=flated_dependencies,
+        flated_arguments=flated_arguments
+    )

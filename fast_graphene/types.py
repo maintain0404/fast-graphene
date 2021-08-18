@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import (
     _GenericAlias,
     _SpecialForm,
@@ -12,8 +13,6 @@ from typing import (
     TypeVar,
     Union,
 )
-from enum import Enum
-
 
 Annotation = Union[
     type,

@@ -18,7 +18,7 @@ python-versions = "*"
 name = "atomicwrites"
 version = "1.4.0"
 description = "Atomic file writes."
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
@@ -26,7 +26,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 name = "attrs"
 version = "21.2.0"
 description = "Classes Without Boilerplate"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
@@ -73,7 +73,7 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 name = "colorama"
 version = "0.4.4"
 description = "Cross-platform colored terminal text."
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
@@ -130,7 +130,7 @@ six = ">=1.12"
 name = "iniconfig"
 version = "1.1.1"
 description = "iniconfig: brain-dead simple config-ini parsing"
-category = "dev"
+category = "main"
 optional = false
 python-versions = "*"
 
@@ -160,7 +160,7 @@ python-versions = "*"
 name = "packaging"
 version = "21.0"
 description = "Core utilities for Python packages"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 
@@ -179,7 +179,7 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
 name = "pluggy"
 version = "0.13.1"
 description = "plugin and hook calling mechanisms for python"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
@@ -204,7 +204,7 @@ test = ["pytest (>=2.7.3)", "pytest-cov", "coveralls", "futures", "pytest-benchm
 name = "py"
 version = "1.10.0"
 description = "library with cross-python path, ini-parsing, io, code, log facilities"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
@@ -212,7 +212,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 name = "pyparsing"
 version = "2.4.7"
 description = "Python parsing module"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 
@@ -220,7 +220,7 @@ python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 name = "pytest"
 version = "6.2.4"
 description = "pytest: simple powerful testing with Python"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 
@@ -236,6 +236,20 @@ toml = "*"
 
 [package.extras]
 testing = ["argcomplete", "hypothesis (>=3.56)", "mock", "nose", "requests", "xmlschema"]
+
+[[package]]
+name = "pytest-asyncio"
+version = "0.15.1"
+description = "Pytest support for asyncio."
+category = "main"
+optional = false
+python-versions = ">= 3.6"
+
+[package.dependencies]
+pytest = ">=5.4.0"
+
+[package.extras]
+testing = ["coverage", "hypothesis (>=5.7.1)"]
 
 [[package]]
 name = "regex"
@@ -265,7 +279,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 name = "toml"
 version = "0.10.2"
 description = "Python Library for Tom's Obvious, Minimal Language"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 
@@ -280,7 +294,7 @@ python-versions = ">=3.6"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "3bf367655450374fb7abba8574907cf6450e4d80818c18434c72b3d6ade0689d"
+content-hash = "05d4f8f0cf1fe1aaf2380947cf573fa1b6a68ec12efc2dd0525478f5d2c3f74b"
 
 [metadata.files]
 aniso8601 = [
@@ -361,6 +375,10 @@ pyparsing = [
 pytest = [
     {file = "pytest-6.2.4-py3-none-any.whl", hash = "sha256:91ef2131a9bd6be8f76f1f08eac5c5317221d6ad1e143ae03894b862e8976890"},
     {file = "pytest-6.2.4.tar.gz", hash = "sha256:50bcad0a0b9c5a72c8e4e7c9855a3ad496ca6a881a3641b4260605450772c54b"},
+]
+pytest-asyncio = [
+    {file = "pytest-asyncio-0.15.1.tar.gz", hash = "sha256:2564ceb9612bbd560d19ca4b41347b54e7835c2f792c504f698e05395ed63f6f"},
+    {file = "pytest_asyncio-0.15.1-py3-none-any.whl", hash = "sha256:3042bcdf1c5d978f6b74d96a151c4cfb9dcece65006198389ccd7e6c60eb1eea"},
 ]
 regex = [
     {file = "regex-2021.8.3-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:8764a78c5464ac6bde91a8c87dd718c27c1cabb7ed2b4beaf36d3e8e390567f9"},
