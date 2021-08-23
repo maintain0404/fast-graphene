@@ -1,8 +1,6 @@
 from enum import Enum
 from typing import (
-    _GenericAlias,
     _SpecialForm,
-    _TypedDictMeta,
     Any,
     Callable,
     List,
@@ -12,19 +10,40 @@ from typing import (
     TypedDict,
     TypeVar,
     Union,
+    Type,
 )
 
-Annotation = Union[
-    type,
-    _SpecialForm,  # Union, Any, Optional, List
-    TypeVar,
-    _TypedDictMeta,  # TypedDict
-    _GenericAlias,  # Tuple
+from graphene import types as gpt
+from graphene.types.structures import Structure
+
+GenericAlias = type(list[int])
+
+
+# TODO: Define Annotation clearly without TypeVar
+Annotation = TypeVar('Annotation')
+# Annotation = Union[
+#     None,
+#     NoneType,
+#     type,
+#     _SpecialForm,  # Union, Any, Optional, List
+#     TypeVar,
+#     Union,
+#     Any,
+#     # TODO: Add these annotated.
+#     # TypedDictMeta,  # TypedDict
+#     # Type[GenericAlias],  # Tuple
+#     # Type[NamedTuple]  # NamedTuple
+# ]
+
+
+GrapheneType = Union[
+    Type[gpt.Scalar],
+    Type[gpt.ObjectType],
+    Type[gpt.NonNull],
+    Type[Structure],  # gpt.NonNull, gpt.List
+    Type[gpt.Union],
 ]
-
-
-GrapheneType = Any
-
+gpt.Union
 
 class ContextType(Enum):
     ARGUMENT = "argument"

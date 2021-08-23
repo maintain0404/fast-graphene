@@ -13,6 +13,8 @@ from typing import (
     Optional,
     Tuple,
     Union,
+    Iterable,
+    Type,
 )
 
 from graphene import types as gpt
@@ -23,25 +25,16 @@ from .utils import GrapheneTypeTreeNode
 
 
 def compile_union(
-    annotation: Annotation,
+    annotation,
     args: List[Annotation],
     context: Optional[Context] = None,
 ) -> Tuple[GrapheneType, List[Annotation]]:
-    try:
-        nonetype_idx = args.index(type(None))
-    except ValueError:
-        try:
-            nonetype_idx = args.index(None)
-        except ValueError:
-            nonetype_idx = None
-    if nonetype_idx:
-        if len(args) == 2:
-            return gpt.NonNull, [args[(nonetype_idx + 1) % 2]]
+    filtered_args = tuple(filter(lambda obj: obj not in (None, type(None)), args))
+    if filtered_args != args:
+        if len(filtered_args) == 1:
+            return gpt.NonNull, [filtered_args[0]]
         else:
-            args_without_nonetype = tuple(
-                *args[:nonetype_idx], args[nonetype_idx + 1 :]
-            )
-            return gpt.NonNull, [Union[args_without_nonetype]]
+            return gpt.NonNull, [Union[filtered_args]] # type: ignore
     else:
         return gpt.Union, args
 
@@ -55,7 +48,7 @@ def compile_list(
 
 
 def compile_object_type(
-    annotation: Annotation,
+    annotation: Type[gpt.ObjectType],
     args: List[Annotation],
     context: Optional[Context] = None,
 ) -> Tuple[GrapheneType, List[Annotation]]:
@@ -100,10 +93,10 @@ class AnnotCompiler:
             Annotation,
             Union[
                 Callable[
-                    [Annotation, List[Annotation]],
+                    [Annotation, List[Annotation], Optional[Any]],
                     Union[GrapheneType, Optional[List[Annotation]]],
                 ],
-                GrapheneType,
+                Tuple[GrapheneType, Iterable[Annotation]],
             ],
         ] = deepcopy(DEFAULT_ANNOT_MAP)
         if annot_map:
@@ -112,23 +105,21 @@ class AnnotCompiler:
             type,
             Union[
                 Callable[
-                    [Annotation, List[Annotation]],
+                    [Annotation, List[Annotation], Optional[Any]],
                     Union[GrapheneType, Optional[List[Annotation]]],
                 ],
-                GrapheneType,
+               Tuple[GrapheneType, List[Annotation]],
             ],
         ] = deepcopy(DEFAULT_SUBCLS_ANNOT_MAP)
         if annot_map:
             self.subcls_annot_map.update(subcls_annot_map)
 
-    def _parent_class_finder(self, cls: type) -> type:
-        if not isinstance(cls, type):
-            raise FastGrapheneException
+    def _parent_class_finder(self, cls: type) -> Optional[type]:
         for parent in self.subcls_annot_map.keys():
             if issubclass(cls, parent):
                 return parent
         else:
-            raise FastGrapheneException
+            return None
 
     def compile_as_node(
         self,
@@ -138,27 +129,32 @@ class AnnotCompiler:
     ) -> GrapheneTypeTreeNode:
         origin = get_origin(annotation) or annotation
         args_origin = get_args(annotation)
+        compiler = None
 
-        compiler = self.annot_map.get(origin) or self.subcls_annot_map.get(
-            self._parent_class_finder(origin)
-        )
+        if isinstance(origin, type):
+            compiler = self.subcls_annot_map.get(
+                self._parent_class_finder(origin)
+            )
+        if not compiler:
+            compiler = self.annot_map.get(origin)
 
         if compiler is None:
             raise FastGrapheneException
+        # TODO: Change type to parent class of all graphene types.
         # Scalar case
-        elif not isfunction(compiler) and isinstance(compiler, type):
-            return GrapheneTypeTreeNode(compiler)
-
-        graphene_type, args = compiler(origin, args_origin, context=context)
-        node = GrapheneTypeTreeNode(
-            graphene_type,
-            [
-                self.compile_as_node(
-                    child_annot, get_args(child_annot), context=context
-                )
-                for child_annot in args
-            ],
-        )
+        elif isinstance(compiler, type):
+            node = GrapheneTypeTreeNode(compiler)
+        elif isfunction(compiler):
+            graphene_type, args = compiler(origin, args_origin, context=context)
+            node = GrapheneTypeTreeNode(
+                graphene_type,
+                [
+                    self.compile_as_node(
+                        child_annot, get_args(child_annot), context=context
+                    )
+                    for child_annot in args
+                ],
+            )
 
         return node
 

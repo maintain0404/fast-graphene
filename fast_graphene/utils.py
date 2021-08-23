@@ -1,4 +1,7 @@
 from collections import UserDict
+from fast_graphene.types import GrapheneType
+from functools import singledispatch
+from itertools import chain
 from copy import deepcopy
 from typing import (
     AbstractSet,
@@ -8,42 +11,45 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    MutableMapping,
     Optional,
     Type,
+    Tuple,
+    Union,
+    overload,
+    MutableMapping,
 )
 
 
-class SetDict(UserDict, AbstractSet):
+class SetDict(UserDict, MutableMapping[Hashable, Any]):
     data: Dict
 
     def __init__(
-        self, *mappings: List[Mapping[Hashable, Any]], **kwargs: Dict[Hashable, Any]
+        self, *mappings: MutableMapping[Hashable, Any], **kwargs: Any
     ):
         super().__init__(**kwargs)
-        self.update(*mappings)
+        for mapping in mappings:
+            self.update(mapping)
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: Hashable, value):
         if key in self.data:
-            raise KeyError(f'Data with key "{key}"" aleady exists.')
+            raise KeyError(f'Data with key "{key}" aleady exists.')
         else:
             self.data[key] = value
 
-    def update(
-        self, *mappings: List[Mapping[Hashable, Any]], **kwargs: Dict[Hashable, Any]
+    def update(  # type: ignore
+        self,
+        mapping: Union[MutableMapping[Hashable, Any], Iterable[Tuple[Hashable, Any]]],
+        **kwargs: Any
     ):
-        for mapping in mappings:
-            for key, value in mapping.items():
-                if key in self.data:
-                    raise KeyError(f'Data with key "{key}"" aleady exists.')
-                else:
-                    self.data[key] = value
-        for key, value in kwargs.items():
+        ziped_tuple = mapping.items() if isinstance(mapping, MutableMapping) else mapping
+        for key, value in chain(ziped_tuple, kwargs.items()):
             if key in self.data:
-                raise KeyError(f'Data with key "{key}"" aleady exists.')
+                raise KeyError(f'Data with key "{key}" aleady exists.')
             else:
                 self.data[key] = value
 
-    def __add__(self, other: Mapping):
+    def __add__(self, other: MutableMapping):
         new_setdict = deepcopy(self)
         new_setdict.update(other)
         return new_setdict
@@ -52,8 +58,8 @@ class SetDict(UserDict, AbstractSet):
 
 
 class GrapheneTypeTreeNode:
-    def __init__(self, type_: Type, children: Optional[Iterable[Type]] = None):
-        self.type_: Type = type_
+    def __init__(self, type_: GrapheneType, children: Optional[Iterable["GrapheneTypeTreeNode"]] = None):
+        self.type_: GrapheneType = type_
         self.children: Iterable[GrapheneTypeTreeNode] = children or []
 
     def compile(self):

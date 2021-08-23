@@ -130,7 +130,7 @@ async def test_dependency_channel():
         return 1
 
     d = Dependency(r1)
-    chan = DependencyChannel([d])
+    chan = DependencyChannel([d], None, info=None)
 
     assert 1 == await wait_for(chan.get(d), 1)
 

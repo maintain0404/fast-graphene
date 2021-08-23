@@ -56,7 +56,9 @@ class Dependency:
         self.arguments = arguments or {}
         self.return_type = return_type
 
-    def __eq__(self, other: "Dependency"):
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Dependency):
+            return NotImplemented
         return self.func is other.func
 
     def __hash__(self):
@@ -102,13 +104,14 @@ class DependencyChannel:
         self,
         dependencies: List[Dependency],
         parent: Optional[Any] = None,
-        info: Optional[gpt.ResolveInfo] = None,
+        *,
+        info: gpt.ResolveInfo,
         **kwargs,
     ):
         self.dependencies = dependencies
         self.results = {dependency: Empty for dependency in dependencies}
         self.events = {dependency: Event() for dependency in dependencies}
-        self.generator_stack = LifoQueue()
+        self.generator_stack: LifoQueue = LifoQueue()
         self.parent = parent
         self.info = info
         self.kwargs = kwargs
