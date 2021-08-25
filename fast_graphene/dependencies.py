@@ -1,4 +1,4 @@
-from asyncio import CancelledError, create_task, Event, gather, LifoQueue
+from asyncio import create_task, Event, gather, LifoQueue
 from copy import copy
 from inspect import (
     isasyncgenfunction,
@@ -6,13 +6,13 @@ from inspect import (
     isfunction,
     isgeneratorfunction,
 )
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, NamedTuple
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Set
 
 from graphene import types as gpt
 
 from .annot_compiler import AnnotCompiler
-from .errors import CircularDependencyException, FastGrapheneException
-from .param_collector import collect_params, DependOn
+from .errors import FastGrapheneException
+from .param_collector import collect_params
 from .utils import SetDict
 
 
@@ -34,6 +34,12 @@ class Dependency:
         self.func = func
         self.is_async_func = iscoroutinefunction(func)
         self.is_async_gen = isasyncgenfunction(func)
+        # TODO: Support for async generator
+        # Async generator dependency makes deadlock.
+        # When it makes deadlock, its type is coroutine.
+        # Figure out why, async generator's type is coroutine on runtime
+        if self.is_async_gen:
+            raise ValueError("Async generator dependency is not supported currently.")
         self.is_sync_func = isfunction(func)
         self.is_generator = isgeneratorfunction(func)
         if not any(
@@ -76,8 +82,19 @@ class Dependency:
         channel: "DependencyChannel",
     ):
         if self.dependencies:
-            dep_results = await gather([channel.get(dep) for dep in self.dependencies])
-        pass
+            dep_results = await gather(
+                *[channel.get(dep) for dep in self.dependencies], return_exceptions=True
+            )
+        else:
+            dep_results = []
+
+        result = self.func(
+            parent, info, **args, **dict(zip(self.dependencies_map.keys(), dep_results))
+        )
+        if self.is_async_func or self.is_async_gen:
+            return await result
+        else:
+            return result
 
 
 class DependencyChannel:
@@ -101,7 +118,7 @@ class DependencyChannel:
             data = await dependency(self.parent, self.info, self.kwargs, self)
         elif dependency.is_async_gen:
             gen = dependency(self.parent, self.info, self.kwargs, self)
-            data = await gen
+            data = await gen.__anext__()
             self.generator_stack.put(gen)
         elif dependency.is_sync_func:
             data = dependency(self.parent, self.info, self.kwargs, self)
@@ -110,6 +127,7 @@ class DependencyChannel:
             data = next(gen)
             self.generator_stack.put(gen)
 
+        print("HIHIHI")
         self.results[dependency] = data
         self.events[dependency].set()
 
@@ -118,13 +136,9 @@ class DependencyChannel:
             task = create_task(self._execute(dependency))
             await self.events[dependency].wait()
 
-            try:
-                await task
-            except CancelledError as err:
-                pass
-            else:
-                if exception := task.exception():
-                    raise exception
+            await task
+            if exception := task.exception():
+                raise exception
 
         return self.results[dependency]
 
@@ -167,5 +181,5 @@ def build_dependency_tree(
     return DependencyBuildResult(
         dependency=traverse(root_depend, set()),
         flated_dependencies=flated_dependencies,
-        flated_arguments=flated_arguments
+        flated_arguments=flated_arguments,
     )
