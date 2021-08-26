@@ -1,29 +1,47 @@
 import pytest
 from graphene import types as gpt
 
-from fast_graphene import Builder, DependOn
+from fast_graphene.builder import Builder
 
 
-def test_args_builder(builder: Builder):
-    @builder.field
-    def func(parent, info, a: int, b: str = "hi") -> int:
-        return 1
+@pytest.fixture
+def builder():
+    return Builder()
 
-    func: gpt.Field
-    assert func.args["a"] == gpt.Argument(gpt.Int)
-    assert func.args["b"] == gpt.Argument(gpt.String, default_value="hi")
+
+def test_builder_build_success(builder):
+    class TestObjectType(gpt.ObjectType):
+        @builder.field
+        def test(
+            info,
+            parent,
+            string: str,
+            num: int = 0,
+        ) -> int:
+            return 1
+
+    args = list(TestObjectType._meta.fields["test"].args.values())
+    assert gpt.Argument(gpt.Int, 0) in args
+    assert gpt.Argument(gpt.String) in args
+    assert TestObjectType._meta.fields["test"].type == gpt.Int
+
+
+@pytest.fixture
+def schema_with_builder(builder):
+    class TestObjectType(gpt.ObjectType):
+        @builder.field
+        def test(
+            info,
+            parent,
+            string: str,
+            num: int = 0,
+        ) -> int:
+            return 1
+
+    return gpt.Schema(TestObjectType)
 
 
 @pytest.mark.asyncio
-async def test_dependency_builder(builder: Builder, valid_dependency_tree_func):
-    dep_func, _ = valid_dependency_tree_func
-
-    @builder.field
-    def func(parent, info, dep=DependOn(dep_func)) -> int:
-        return 1
-
-    func: gpt.Field
-    ext_result = await func.resolver(None, None)
-
-    assert not func.args
-    assert ext_result == 1
+async def test_builder_execute(schema_with_builder):
+    result = await schema_with_builder.execute("query Query { test }")
+    assert result["data"]["test"] == 1

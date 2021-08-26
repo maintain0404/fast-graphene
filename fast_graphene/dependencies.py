@@ -6,13 +6,13 @@ from inspect import (
     isfunction,
     isgeneratorfunction,
 )
-from typing import Any, Callable, Dict, Iterable, NamedTuple, Optional, Set
+from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set
 
 from graphene import types as gpt
 
 from .annot_compiler import AnnotCompiler
 from .errors import FastGrapheneException
-from .param_collector import collect_params
+from .param_collector import interpret_params, pick_used_params_only
 from .utils import SetDict
 
 
@@ -167,7 +167,7 @@ def build_dependency_tree(
     flated_arguments = SetDict()  # TODO: Check if arugment used in duplicate.
 
     def traverse(func, accum_dependencies: set):
-        args, dep_funcs, _ = collect_params(func)
+        args, dep_funcs, _ = interpret_params(func)
         flated_arguments.update(args)
 
         dependencies_map = {}

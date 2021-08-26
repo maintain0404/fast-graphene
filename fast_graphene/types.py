@@ -14,8 +14,14 @@ from typing import (
 from graphene import types as gpt
 from graphene.types.structures import Structure
 
+GenericAlias = type(List[int])
+
+
 # TODO: Define Annotation clearly without TypeVar
 Annotation = TypeVar("Annotation")
+
+
+Parameter = TypeVar("Parameter")  # Argument value, Dependency
 
 
 GrapheneType = Union[
@@ -35,14 +41,10 @@ class ContextEnum(Enum):
 
 
 class Context(TypedDict):
-    function: Optional["TypeCompileFunc"]
+    function: Optional[
+        Callable[
+            [Annotation, List[Annotation], Optional["Context"]],
+            Tuple[Annotation, List[Annotation]],
+        ]
+    ]
     type: Union[Literal["argument", "return", "mutation", "input_field"], ContextEnum]
-
-
-TypeCompileResult = Tuple[Annotation, List[Annotation]]
-
-
-TypeCompileFunc = Callable[
-    [Annotation, List[Annotation], Optional["Context"]],
-    TypeCompileResult,
-]

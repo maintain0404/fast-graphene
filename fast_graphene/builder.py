@@ -3,19 +3,15 @@ from datetime import date, datetime
 from decimal import Decimal
 from functools import wraps
 from inspect import signature
-from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Set, Type, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Type, Union
 
 from graphene import types as gpt
 from graphql.execution.base import ResolveInfo
 
-from fast_graphene.dependencies import (
-    build_dependency_tree,
-    Dependency,
-    DependencyChannel,
-)
+from fast_graphene.dependencies import Dependency, DependencyChannel
 
 from .annot_compiler import AnnotCompiler
-from .param_collector import collect_params, pick_used_params_only
+from .param_collector import interpret_params, pick_used_params_only
 from .types import ContextEnum
 from .utils import SetDict
 
@@ -30,53 +26,49 @@ DEFAULT_SCALAR_MAP = {
 }
 
 
-def build_resolver(
+def resolver_builder(
     func: Callable,
     used_arg_names: Iterable[str],
-    used_dependency_map: Mapping[str, Dependency],
-    dependencies: Set[Dependency],
+    used_dependency_names: Iterable[str],
+    dependencies: Dict[str, Dependency],
 ):
     @wraps(func)
     async def resolver(parent: Any, info: ResolveInfo, **kwargs):
-        channel = DependencyChannel(dependencies, parent, info=info, **kwargs)
+        channel = DependencyChannel(dependencies.values(), parent, info, **kwargs)
         args_to_use = pick_used_params_only(used_arg_names, kwargs)
 
-        # execute dependencies
-        dependency_results = await gather(
+        # To prevent leaf dependency called first.
+        dependencies_to_use = pick_used_params_only(used_dependency_names, dependencies)
+
+        # Execute Dependencies
+        gatherd = await gather(
             *(
                 dependency(
                     parent,
                     info,
-                    pick_used_params_only(dependency.arguments, kwargs),
+                    pick_used_params_only(dependency.arguments.keys(), kwargs),
                     channel=channel,
                 )
-                for dependency in used_dependency_map.values()
+                for dependency in dependencies_to_use.values()
             )
-        )  # release generators.
-        release_task = create_task(channel.release())
-        resolved_dependencies = dict(
-            zip(used_dependency_map.keys(), dependency_results)
         )
+
+        # Release generators.
+        release = create_task(channel.release())
+        resolved_dependencies = dict(zip(dependencies_to_use.keys(), gatherd))
         result = func(parent, info, **args_to_use, **resolved_dependencies)
-        await release_task
+        await release
         return result
 
     return resolver
 
 
-# TODO: This is not invalid. Fix with build_dependency_tree
 class Builder:
     def __init__(
         self,
-        # TODO: Add later
-        # include_parent: bool = True,
-        # include_info: bool = True,
         annot_map=None,
         subcls_annot_map=None,
     ):
-        # TODO: Add later
-        # self.include_parent: bool = include_parent
-        # self.include_info: bool = include_info
         self.annot_compiler = AnnotCompiler(annot_map, subcls_annot_map)
 
     def compile_type_hint(self, hint, context=None):
@@ -99,9 +91,6 @@ class Builder:
             nonlocal extra_args
             extra_args = extra_args or {}
             args = SetDict()
-            # TODO: Implement dependency.
-            direct_dependencies = dict()
-            all_dependencies = set()
 
             # Set graphene Field type(=return_type).
             nonlocal return_type
@@ -111,27 +100,13 @@ class Builder:
                 )
 
             # Check with params.
-            args, depend_ons, return_type = collect_params(
+            args, depend_ons, return_type = interpret_params(
                 func, annot_compiler=self.annot_compiler
             )
-            used_arg_names = args.keys()
-            for name, depend_on in depend_ons.items():
-                build_result = build_dependency_tree(depend_on, self.annot_compiler)
-                dependency_args, dependency, flatted_dependencies = (
-                    build_result.flated_arguments,
-                    build_result.dependency,
-                    build_result.flated_dependencies,
-                )
 
-                args.update(dependency_args)
-                all_dependencies = all_dependencies | flatted_dependencies
-                direct_dependencies[name] = dependency
-
-            resolver = build_resolver(
-                func,
-                used_arg_names=used_arg_names,
-                used_dependency_map=direct_dependencies,
-                dependencies=all_dependencies,
+            # Build resolver
+            resolver = resolver_builder(
+                func, args.keys(), set(depend_ons.values()), depend_ons
             )
 
             args.update(extra_args)

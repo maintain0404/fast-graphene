@@ -1,7 +1,7 @@
 from graphene import types as gpt
 
 from fast_graphene import DependOn
-from fast_graphene.param_collector import collect_params
+from fast_graphene.param_collector import interpret_params
 
 
 def dep(parent, info):
@@ -17,7 +17,7 @@ def resolver_to_fail():
 
 
 def test_collect_params():
-    args, dep_funcs, returntype = collect_params(resolver_to_test_dependon)
+    args, dep_funcs, returntype = interpret_params(resolver_to_test_dependon)
 
     assert sorted(args) == []
     assert dep_funcs == {"dep": dep}
