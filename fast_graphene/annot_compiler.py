@@ -8,7 +8,13 @@ from typing import Dict, get_args, get_origin, List, Optional, Type, Union
 from graphene import types as gpt
 
 from .errors import FastGrapheneException
-from .types import Annotation, Context, GrapheneType, TypeCompileFunc, TypeCompileResult
+from .types import (
+    Annotation,
+    AnnotCompileFunc,
+    AnnotCompileResult,
+    Context,
+    GrapheneType,
+)
 from .utils import GrapheneTypeTreeNode
 
 
@@ -16,7 +22,7 @@ def compile_union(
     annotation,
     args: List[Annotation],
     context: Optional[Context] = None,
-) -> TypeCompileResult:
+) -> AnnotCompileResult:
     filtered_args = tuple(filter(lambda obj: obj not in (None, type(None)), args))
     if filtered_args != args:
         if len(filtered_args) == 1:
@@ -31,7 +37,7 @@ def compile_list(
     annotation: Annotation,
     args: List[Annotation],
     context: Optional[Context] = None,
-) -> TypeCompileResult:
+) -> AnnotCompileResult:
     return gpt.List, args
 
 
@@ -39,7 +45,7 @@ def compile_object_type(
     annotation: Type[gpt.ObjectType],
     args: List[Annotation],
     context: Optional[Context] = None,
-) -> TypeCompileResult:
+) -> AnnotCompileResult:
     return annotation, []
 
 
@@ -47,7 +53,7 @@ def compile_enum(
     annotation: Annotation,
     args: List[Annotation],
     context: Optional[Context] = None,
-) -> TypeCompileResult:
+) -> AnnotCompileResult:
     return gpt.Enum.from_enum(annotation), []
 
 
@@ -79,15 +85,15 @@ class AnnotCompiler:
     ):
         self.annot_map: Dict[
             Annotation,
-            Union[TypeCompileFunc, GrapheneType],
+            Union[AnnotCompileFunc, GrapheneType],
         ] = deepcopy(DEFAULT_ANNOT_MAP)
         if annot_map:
             self.annot_map.update(annot_map)
         self.subcls_annot_map: Dict[
             type,
             Union[
-                TypeCompileFunc,
-                Union[TypeCompileFunc, GrapheneType],
+                AnnotCompileFunc,
+                Union[AnnotCompileFunc, GrapheneType],
             ],
         ] = deepcopy(DEFAULT_SUBCLS_ANNOT_MAP)
         if annot_map:

@@ -21,7 +21,7 @@ GenericAlias = type(List[int])
 Annotation = TypeVar("Annotation")
 
 
-Parameter = TypeVar("Parameter")  # Argument value, Dependency
+ParamValue = TypeVar("ParamValue")  # Argument value, Dependency
 
 
 GrapheneType = Union[
@@ -40,11 +40,15 @@ class ContextEnum(Enum):
     INPUT_FIELD = "input_field"
 
 
+AnnotCompileResult = Tuple[GrapheneType, List[Annotation]]
+
+
+AnnotCompileFunc = Callable[
+    [Annotation, List[Annotation], Optional["Context"]],
+    AnnotCompileResult,
+]
+
+
 class Context(TypedDict):
-    function: Optional[
-        Callable[
-            [Annotation, List[Annotation], Optional["Context"]],
-            Tuple[Annotation, List[Annotation]],
-        ]
-    ]
+    function: AnnotCompileFunc
     type: Union[Literal["argument", "return", "mutation", "input_field"], ContextEnum]

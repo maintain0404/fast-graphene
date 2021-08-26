@@ -1,11 +1,11 @@
-from inspect import Parameter, signature, Signature
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+from inspect import Parameter, signature
+from typing import Callable, Dict, Iterable, Optional, Tuple
 
 from graphene import types as gpt
 
 from .annot_compiler import AnnotCompiler
 from .errors import FastGrapheneException
-from .types import Parameter
+from .types import ParamValue
 
 
 class DependOn:
@@ -13,18 +13,12 @@ class DependOn:
         self.func = func
 
 
-# TODO: Rename
 def interpret_params(
     func: Callable,
     annot_compiler: Optional[AnnotCompiler] = None,
-) -> Tuple[Dict[str, gpt.Argument], Dict[str, Callable], Optional[Any]]:
+) -> Tuple[Dict[str, gpt.Argument], Dict[str, Callable]]:
     sig = signature(func)
     annot_compiler = annot_compiler or AnnotCompiler()
-
-    if sig.return_annotation is not Signature.empty:
-        return_type = annot_compiler.compile(sig.return_annotation)
-    else:
-        return_type = None
 
     args = {}
     depend_ons = {}
@@ -48,10 +42,10 @@ def interpret_params(
         else:
             raise FastGrapheneException
 
-    return args, depend_ons, return_type
+    return args, depend_ons
 
 
 def pick_used_params_only(
-    used_arg_names: Iterable[str], args: Dict[str, Parameter]
-) -> Dict[str, Parameter]:
+    used_arg_names: Iterable[str], args: Dict[str, ParamValue]
+) -> Dict[str, ParamValue]:
     return {name: args[name] for name in used_arg_names}
