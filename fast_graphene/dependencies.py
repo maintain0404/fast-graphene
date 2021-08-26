@@ -6,13 +6,13 @@ from inspect import (
     isfunction,
     isgeneratorfunction,
 )
-from typing import Any, Callable, Dict, List, NamedTuple, Optional, Set
+from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set
 
 from graphene import types as gpt
 
 from .annot_compiler import AnnotCompiler
 from .errors import FastGrapheneException
-from .param_collector import collect_params
+from .param_collector import collect_params, pick_used_params_only
 from .utils import SetDict
 
 
@@ -102,7 +102,7 @@ class Dependency:
 class DependencyChannel:
     def __init__(
         self,
-        dependencies: List[Dependency],
+        dependencies: Iterable[Dependency],
         parent: Optional[Any] = None,
         *,
         info: gpt.ResolveInfo,

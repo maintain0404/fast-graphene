@@ -1,5 +1,5 @@
 from inspect import Parameter, signature, Signature
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, TypeVar
 
 from graphene import types as gpt
 
@@ -48,3 +48,13 @@ def collect_params(
             raise FastGrapheneException
 
     return args, depend_ons, return_type
+
+
+# TODO: Rename
+T = TypeVar("T")
+
+
+def pick_used_params_only(
+    used_arg_names: Iterable[str], args: Dict[str, T]
+) -> Dict[str, T]:
+    return {name: args[name] for name in used_arg_names}

@@ -46,7 +46,7 @@ GrapheneType = Union[
 gpt.Union
 
 
-class ContextType(Enum):
+class ContextEnum(Enum):
     ARGUMENT = "argument"
     FIELD = "field"
     MUTATION = "mutation"
@@ -60,4 +60,4 @@ class Context(TypedDict):
             Tuple[Annotation, List[Annotation]],
         ]
     ]
-    type: Literal["argument", "return"]
+    type: Union[Literal["argument", "return", "mutation", "input_field"], ContextEnum]
