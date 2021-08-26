@@ -2,19 +2,19 @@ from copy import deepcopy
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from inspect import isfunction, Parameter, signature, Signature
+from inspect import isfunction
 from typing import (
     Any,
     Callable,
     Dict,
     get_args,
     get_origin,
+    Iterable,
     List,
     Optional,
     Tuple,
-    Union,
-    Iterable,
     Type,
+    Union,
 )
 
 from graphene import types as gpt
@@ -34,7 +34,7 @@ def compile_union(
         if len(filtered_args) == 1:
             return gpt.NonNull, [filtered_args[0]]
         else:
-            return gpt.NonNull, [Union[filtered_args]] # type: ignore
+            return gpt.NonNull, [Union[filtered_args]]  # type: ignore
     else:
         return gpt.Union, args
 
@@ -108,7 +108,7 @@ class AnnotCompiler:
                     [Annotation, List[Annotation], Optional[Any]],
                     Union[GrapheneType, Optional[List[Annotation]]],
                 ],
-               Tuple[GrapheneType, List[Annotation]],
+                Tuple[GrapheneType, List[Annotation]],
             ],
         ] = deepcopy(DEFAULT_SUBCLS_ANNOT_MAP)
         if annot_map:
@@ -132,9 +132,7 @@ class AnnotCompiler:
         compiler = None
 
         if isinstance(origin, type):
-            compiler = self.subcls_annot_map.get(
-                self._parent_class_finder(origin)
-            )
+            compiler = self.subcls_annot_map.get(self._parent_class_finder(origin))
         if not compiler:
             compiler = self.annot_map.get(origin)
 

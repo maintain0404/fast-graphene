@@ -7,10 +7,10 @@ from typing import (
     Literal,
     Optional,
     Tuple,
+    Type,
     TypedDict,
     TypeVar,
     Union,
-    Type,
 )
 
 from graphene import types as gpt
@@ -20,7 +20,7 @@ GenericAlias = type(list[int])
 
 
 # TODO: Define Annotation clearly without TypeVar
-Annotation = TypeVar('Annotation')
+Annotation = TypeVar("Annotation")
 # Annotation = Union[
 #     None,
 #     NoneType,
@@ -44,6 +44,7 @@ GrapheneType = Union[
     Type[gpt.Union],
 ]
 gpt.Union
+
 
 class ContextType(Enum):
     ARGUMENT = "argument"

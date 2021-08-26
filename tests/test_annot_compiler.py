@@ -10,12 +10,13 @@ annot_compiler = AnnotCompiler()
 
 
 @pytest.mark.parametrize(
-    'annotation', [
+    "annotation",
+    [
         (Optional[int], gpt.NonNull(gpt.Int)),
         (List[str], gpt.List(gpt.String)),
         (Optional[List[int]], gpt.NonNull(gpt.List(gpt.Int))),
         (Optional[List[Optional[int]]], gpt.NonNull(gpt.List(gpt.NonNull(gpt.Int)))),
-    ]
+    ],
 )
 def test_transfiler(annotation):
     origin, expected = annotation
@@ -30,11 +31,7 @@ class TestEnum(Enum):
     c = 3
 
 
-@pytest.mark.parametrize(
-    'annotation', [
-        (TestEnum, gpt.Enum.from_enum(TestEnum))
-    ]
-)
+@pytest.mark.parametrize("annotation", [(TestEnum, gpt.Enum.from_enum(TestEnum))])
 def test_transfiler_enum(annotation):
     origin, expected = annotation
 

@@ -130,7 +130,6 @@ class DependencyChannel:
             data = next(gen)
             self.generator_stack.put(gen)
 
-        print("HIHIHI")
         self.results[dependency] = data
         self.events[dependency].set()
 

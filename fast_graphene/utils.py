@@ -1,8 +1,7 @@
 from collections import UserDict
-from fast_graphene.types import GrapheneType
+from copy import deepcopy
 from functools import singledispatch
 from itertools import chain
-from copy import deepcopy
 from typing import (
     AbstractSet,
     Any,
@@ -13,20 +12,19 @@ from typing import (
     Mapping,
     MutableMapping,
     Optional,
-    Type,
-    Tuple,
-    Union,
     overload,
-    MutableMapping,
+    Tuple,
+    Type,
+    Union,
 )
+
+from fast_graphene.types import GrapheneType
 
 
 class SetDict(UserDict, MutableMapping[Hashable, Any]):
     data: Dict
 
-    def __init__(
-        self, *mappings: MutableMapping[Hashable, Any], **kwargs: Any
-    ):
+    def __init__(self, *mappings: MutableMapping[Hashable, Any], **kwargs: Any):
         super().__init__(**kwargs)
         for mapping in mappings:
             self.update(mapping)
@@ -40,9 +38,11 @@ class SetDict(UserDict, MutableMapping[Hashable, Any]):
     def update(  # type: ignore
         self,
         mapping: Union[MutableMapping[Hashable, Any], Iterable[Tuple[Hashable, Any]]],
-        **kwargs: Any
+        **kwargs: Any,
     ):
-        ziped_tuple = mapping.items() if isinstance(mapping, MutableMapping) else mapping
+        ziped_tuple = (
+            mapping.items() if isinstance(mapping, MutableMapping) else mapping
+        )
         for key, value in chain(ziped_tuple, kwargs.items()):
             if key in self.data:
                 raise KeyError(f'Data with key "{key}" aleady exists.')
@@ -58,7 +58,11 @@ class SetDict(UserDict, MutableMapping[Hashable, Any]):
 
 
 class GrapheneTypeTreeNode:
-    def __init__(self, type_: GrapheneType, children: Optional[Iterable["GrapheneTypeTreeNode"]] = None):
+    def __init__(
+        self,
+        type_: GrapheneType,
+        children: Optional[Iterable["GrapheneTypeTreeNode"]] = None,
+    ):
         self.type_: GrapheneType = type_
         self.children: Iterable[GrapheneTypeTreeNode] = children or []
 

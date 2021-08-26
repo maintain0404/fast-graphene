@@ -20,5 +20,5 @@ def test_collect_params():
     args, dep_funcs, returntype = collect_params(resolver_to_test_dependon)
 
     assert sorted(args) == []
-    assert dep_funcs == {'dep':dep}
+    assert dep_funcs == {"dep": dep}
     assert returntype == gpt.Int
