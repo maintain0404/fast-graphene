@@ -57,4 +57,4 @@ T = TypeVar("T")
 def pick_used_params_only(
     used_arg_names: Iterable[str], args: Dict[str, T]
 ) -> Dict[str, T]:
-    return {name: args[name] for name in used_arg_names}
+    return {key: args[key] for key in used_arg_names}
