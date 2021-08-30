@@ -19,7 +19,7 @@ async def test_dependency_builder(builder: Builder, valid_dependency_tree_func):
     dep_func, _ = valid_dependency_tree_func
 
     @builder.field
-    def func(parent, args, dep=DependOn(dep_func)) -> int:
+    def func(parent, info, dep=DependOn(dep_func)) -> int:
         return 1
 
     func: gpt.Field

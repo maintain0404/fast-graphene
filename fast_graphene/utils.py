@@ -1,22 +1,7 @@
 from collections import UserDict
 from copy import deepcopy
-from functools import singledispatch
 from itertools import chain
-from typing import (
-    AbstractSet,
-    Any,
-    Dict,
-    Hashable,
-    Iterable,
-    List,
-    Mapping,
-    MutableMapping,
-    Optional,
-    overload,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import Any, Dict, Hashable, Iterable, MutableMapping, Optional, Tuple, Union
 
 from fast_graphene.types import GrapheneType
 

@@ -1,4 +1,4 @@
-import pytest
+import pytest  # noqa
 
 pytest_plugins = [
     "fixtures.builders",

@@ -1,9 +1,7 @@
-from asyncio import sleep as asleep  # noqa
 from asyncio import wait_for
 
 import pytest
 
-from fast_graphene import DependOn  # noqa
 from fast_graphene.dependencies import (
     build_dependency_tree,
     Dependency,

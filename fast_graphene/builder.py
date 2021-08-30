@@ -93,9 +93,7 @@ class Builder:
         deprecation_reason: Optional[str] = None,
     ):
         def inner(func: Callable):
-            # 시그니처 따기
             sig = signature(func)
-            params = sig.parameters
 
             nonlocal default_value
             nonlocal extra_args

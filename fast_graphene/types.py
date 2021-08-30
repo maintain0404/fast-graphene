@@ -1,7 +1,5 @@
 from enum import Enum
 from typing import (
-    _SpecialForm,
-    Any,
     Callable,
     List,
     Literal,
@@ -16,24 +14,8 @@ from typing import (
 from graphene import types as gpt
 from graphene.types.structures import Structure
 
-GenericAlias = type(list[int])
-
-
 # TODO: Define Annotation clearly without TypeVar
 Annotation = TypeVar("Annotation")
-# Annotation = Union[
-#     None,
-#     NoneType,
-#     type,
-#     _SpecialForm,  # Union, Any, Optional, List
-#     TypeVar,
-#     Union,
-#     Any,
-#     # TODO: Add these annotated.
-#     # TypedDictMeta,  # TypedDict
-#     # Type[GenericAlias],  # Tuple
-#     # Type[NamedTuple]  # NamedTuple
-# ]
 
 
 GrapheneType = Union[
@@ -43,7 +25,6 @@ GrapheneType = Union[
     Type[Structure],  # gpt.NonNull, gpt.List
     Type[gpt.Union],
 ]
-gpt.Union
 
 
 class ContextEnum(Enum):
@@ -54,10 +35,14 @@ class ContextEnum(Enum):
 
 
 class Context(TypedDict):
-    function: Optional[
-        Callable[
-            [Annotation, List[Annotation], Optional["Context"]],
-            Tuple[Annotation, List[Annotation]],
-        ]
-    ]
+    function: Optional["TypeCompileFunc"]
     type: Union[Literal["argument", "return", "mutation", "input_field"], ContextEnum]
+
+
+TypeCompileResult = Tuple[Annotation, List[Annotation]]
+
+
+TypeCompileFunc = Callable[
+    [Annotation, List[Annotation], Optional["Context"]],
+    TypeCompileResult,
+]

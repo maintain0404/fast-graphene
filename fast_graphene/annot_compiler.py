@@ -3,24 +3,12 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 from inspect import isfunction
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    get_args,
-    get_origin,
-    Iterable,
-    List,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import Dict, get_args, get_origin, List, Optional, Type, Union
 
 from graphene import types as gpt
 
 from .errors import FastGrapheneException
-from .types import Annotation, Context, GrapheneType
+from .types import Annotation, Context, GrapheneType, TypeCompileFunc, TypeCompileResult
 from .utils import GrapheneTypeTreeNode
 
 
@@ -28,7 +16,7 @@ def compile_union(
     annotation,
     args: List[Annotation],
     context: Optional[Context] = None,
-) -> Tuple[GrapheneType, List[Annotation]]:
+) -> TypeCompileResult:
     filtered_args = tuple(filter(lambda obj: obj not in (None, type(None)), args))
     if filtered_args != args:
         if len(filtered_args) == 1:
@@ -43,7 +31,7 @@ def compile_list(
     annotation: Annotation,
     args: List[Annotation],
     context: Optional[Context] = None,
-) -> Tuple[GrapheneType, List[Annotation]]:
+) -> TypeCompileResult:
     return gpt.List, args
 
 
@@ -51,7 +39,7 @@ def compile_object_type(
     annotation: Type[gpt.ObjectType],
     args: List[Annotation],
     context: Optional[Context] = None,
-) -> Tuple[GrapheneType, List[Annotation]]:
+) -> TypeCompileResult:
     return annotation, []
 
 
@@ -59,7 +47,7 @@ def compile_enum(
     annotation: Annotation,
     args: List[Annotation],
     context: Optional[Context] = None,
-) -> Tuple[GrapheneType, List[Annotation]]:
+) -> TypeCompileResult:
     return gpt.Enum.from_enum(annotation), []
 
 
@@ -91,24 +79,15 @@ class AnnotCompiler:
     ):
         self.annot_map: Dict[
             Annotation,
-            Union[
-                Callable[
-                    [Annotation, List[Annotation], Optional[Any]],
-                    Union[GrapheneType, Optional[List[Annotation]]],
-                ],
-                Tuple[GrapheneType, Iterable[Annotation]],
-            ],
+            Union[TypeCompileFunc, GrapheneType],
         ] = deepcopy(DEFAULT_ANNOT_MAP)
         if annot_map:
             self.annot_map.update(annot_map)
         self.subcls_annot_map: Dict[
             type,
             Union[
-                Callable[
-                    [Annotation, List[Annotation], Optional[Any]],
-                    Union[GrapheneType, Optional[List[Annotation]]],
-                ],
-                Tuple[GrapheneType, List[Annotation]],
+                TypeCompileFunc,
+                Union[TypeCompileFunc, GrapheneType],
             ],
         ] = deepcopy(DEFAULT_SUBCLS_ANNOT_MAP)
         if annot_map:
