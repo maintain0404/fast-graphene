@@ -6,7 +6,7 @@ authors = ["Your Name <maintain0404@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-graphene = "^2.1.9"
+graphene = { version = "^3.0.0*", allow-prereleases = true}
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.4"

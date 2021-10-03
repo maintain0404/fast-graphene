@@ -17,8 +17,7 @@ def resolver_to_fail():
 
 
 def test_collect_params():
-    args, dep_funcs, returntype = interpret_params(resolver_to_test_dependon)
+    args, dep_funcs = interpret_params(resolver_to_test_dependon)
 
     assert sorted(args) == []
     assert dep_funcs == {"dep": dep}
-    assert returntype == gpt.Int

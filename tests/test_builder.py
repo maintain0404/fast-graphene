@@ -1,3 +1,5 @@
+from asyncio import wait_for
+
 import pytest
 from graphene import types as gpt
 
@@ -9,10 +11,11 @@ def builder():
     return Builder()
 
 
-def test_builder_build_success(builder):
+@pytest.fixture
+def object_type(builder):
     class TestObjectType(gpt.ObjectType):
         @builder.field
-        def test(
+        async def test(
             info,
             parent,
             string: str,
@@ -20,28 +23,28 @@ def test_builder_build_success(builder):
         ) -> int:
             return 1
 
-    args = list(TestObjectType._meta.fields["test"].args.values())
+    return TestObjectType
+
+
+def test_builder_build_success(object_type):
+    args = list(object_type._meta.fields["test"].args.values())
     assert gpt.Argument(gpt.Int, 0) in args
     assert gpt.Argument(gpt.String) in args
-    assert TestObjectType._meta.fields["test"].type == gpt.Int
+    assert object_type._meta.fields["test"].type == gpt.Int
 
 
 @pytest.fixture
-def schema_with_builder(builder):
-    class TestObjectType(gpt.ObjectType):
-        @builder.field
-        def test(
-            info,
-            parent,
-            string: str,
-            num: int = 0,
-        ) -> int:
-            return 1
-
-    return gpt.Schema(TestObjectType)
+def schema_with_builder(object_type):
+    return gpt.Schema(object_type)
 
 
 @pytest.mark.asyncio
-async def test_builder_execute(schema_with_builder):
-    result = await schema_with_builder.execute("query Query { test }")
-    assert result["data"]["test"] == 1
+async def test_builder_execute(schema_with_builder: gpt.Schema):
+    try:
+        result = await wait_for(
+            schema_with_builder.execute_async("query Query { test }"), 5
+        )
+    except Exception:
+        assert False
+    assert not result.errors
+    assert result.data["test"] == 1

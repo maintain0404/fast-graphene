@@ -1,12 +1,11 @@
-from asyncio import create_task, gather
+from asyncio import create_task, gather, get_running_loop
 from datetime import date, datetime
 from decimal import Decimal
-from functools import wraps
-from inspect import signature
-from typing import Any, Callable, Dict, Iterable, Optional, Type, Union
+from functools import partial, wraps
+from inspect import iscoroutinefunction, signature
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Type, Union
 
 from graphene import types as gpt
-from graphql.execution.base import ResolveInfo
 
 from fast_graphene.dependencies import Dependency, DependencyChannel
 
@@ -26,15 +25,21 @@ DEFAULT_SCALAR_MAP = {
 }
 
 
-def resolver_builder(
+def compile_func(
     func: Callable,
     used_arg_names: Iterable[str],
     used_dependency_names: Iterable[str],
     dependencies: Dict[str, Dependency],
 ):
+    if not iscoroutinefunction(func):
+        loop = get_running_loop()
+        executor = partial(loop.run_in_executor, None, func)
+    else:
+        executor = func
+
     @wraps(func)
-    async def resolver(parent: Any, info: ResolveInfo, **kwargs):
-        channel = DependencyChannel(dependencies.values(), parent, info, **kwargs)
+    async def compiled_func(parent: Any, info: gpt.ResolveInfo, **kwargs):
+        channel = DependencyChannel(dependencies.values(), parent, info=info, **kwargs)
         args_to_use = pick_used_params_only(used_arg_names, kwargs)
 
         # To prevent leaf dependency called first.
@@ -42,7 +47,7 @@ def resolver_builder(
 
         # Execute Dependencies
         gatherd = await gather(
-            *(
+            *[
                 dependency(
                     parent,
                     info,
@@ -50,17 +55,17 @@ def resolver_builder(
                     channel=channel,
                 )
                 for dependency in dependencies_to_use.values()
-            )
+            ]
         )
 
         # Release generators.
         release = create_task(channel.release())
         resolved_dependencies = dict(zip(dependencies_to_use.keys(), gatherd))
-        result = func(parent, info, **args_to_use, **resolved_dependencies)
+        result = await executor(parent, info, **args_to_use, **resolved_dependencies)
         await release
         return result
 
-    return resolver
+    return compiled_func
 
 
 class Builder:
@@ -71,8 +76,34 @@ class Builder:
     ):
         self.annot_compiler = AnnotCompiler(annot_map, subcls_annot_map)
 
-    def compile_type_hint(self, hint, context=None):
-        return self.annot_compiler.compile(hint, context=context)
+    def resolver(
+        self,
+        func: Optional[Callable] = None,
+    ) -> Callable:
+        def inner(func):
+            compiled_func, _ = self._compile_func(func)
+            return compiled_func
+
+        if func:
+            return inner(func)
+        else:
+            return inner
+
+    mutation = resolver  # noqa
+
+    def _compile_func(
+        self, func: Callable, extra_args: Optional[Dict[str, gpt.Argument]] = None
+    ) -> Tuple[Callable, Dict[str, gpt.Argument]]:
+        extra_args = extra_args or {}
+
+        args, depend_ons = interpret_params(func, annot_compiler=self.annot_compiler)
+        compiled_func = compile_func(
+            func, args.keys(), set(depend_ons.values()), depend_ons
+        )
+        args = SetDict(args)
+        args.update(extra_args)
+
+        return compiled_func, args
 
     def field(
         self,
@@ -89,8 +120,8 @@ class Builder:
 
             nonlocal default_value
             nonlocal extra_args
-            extra_args = extra_args or {}
-            args = SetDict()
+
+            compiled_func, args = self._compile_func(func, extra_args=extra_args)
 
             # Set graphene Field type(=return_type).
             nonlocal return_type
@@ -99,21 +130,10 @@ class Builder:
                     sig.return_annotation, ContextEnum.FIELD
                 )
 
-            # Check with params.
-            args, depend_ons, return_type = interpret_params(
-                func, annot_compiler=self.annot_compiler
-            )
-
-            # Build resolver
-            resolver = resolver_builder(
-                func, args.keys(), set(depend_ons.values()), depend_ons
-            )
-
-            args.update(extra_args)
             return gpt.Field(
                 return_type,
                 args=args,
-                resolver=resolver,
+                resolver=compiled_func,
                 default_value=default_value,
                 description=description,
                 deprecation_reason=deprecation_reason,
