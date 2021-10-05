@@ -4,7 +4,6 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 from graphene import types as gpt
 
 from .annot_compiler import AnnotCompiler
-from .errors import FastGrapheneException
 from .types import ParamValue
 
 
@@ -40,7 +39,9 @@ def interpret_params(
             compiled = annot_compiler.compile(type_)
             args[name] = gpt.Argument(compiled, default_value=default)
         else:
-            raise FastGrapheneException
+            raise ValueError(
+                f'Paramter "{name}" of function "{func}" doesn\'t have default value or annotaion.'
+            )
 
     return args, depend_ons
 

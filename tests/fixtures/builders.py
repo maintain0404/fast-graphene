@@ -1,5 +1,4 @@
 import pytest
-from graphene import types as gpt
 
 from fast_graphene import Builder
 

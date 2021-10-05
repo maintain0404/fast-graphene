@@ -1,5 +1,3 @@
-from graphene import types as gpt
-
 from fast_graphene import DependOn
 from fast_graphene.param_collector import interpret_params
 

@@ -6,12 +6,11 @@ from inspect import (
     isfunction,
     isgeneratorfunction,
 )
-from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Set
+from typing import Any, Callable, Dict, Iterable, NamedTuple, Optional, Set
 
 from graphene import types as gpt
 
 from .annot_compiler import AnnotCompiler
-from .errors import FastGrapheneException
 from .param_collector import interpret_params
 from .utils import SetDict
 
@@ -39,7 +38,9 @@ class Dependency:
         # When it makes deadlock, its type is coroutine.
         # Figure out why, async generator's type is coroutine on runtime
         if self.is_async_gen:
-            raise ValueError("Async generator dependency is not supported currently.")
+            raise NotImplementedError(
+                "Async generator dependency is not supported currently."
+            )
         self.is_sync_func = isfunction(func)
         self.is_generator = isgeneratorfunction(func)
         if not any(
@@ -50,7 +51,7 @@ class Dependency:
                 self.is_generator,
             )
         ):
-            raise FastGrapheneException  # Invalidone
+            raise TypeError(f'Dependency with function "{func}" is not valid function.')
         self.dependencies_map = dependencies_map or {}
         self.dependencies = list(self.dependencies_map.values())
         self.arguments = arguments or {}
