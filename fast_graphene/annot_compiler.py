@@ -7,7 +7,6 @@ from typing import Dict, get_args, get_origin, List, Optional, Type, Union
 
 from graphene import types as gpt
 
-from .errors import FastGrapheneException
 from .types import (
     Annotation,
     AnnotCompileFunc,
@@ -122,7 +121,9 @@ class AnnotCompiler:
             compiler = self.annot_map.get(origin)
 
         if compiler is None:
-            raise FastGrapheneException
+            raise TypeError(
+                f'Cannot compile "{annotation}". Use "annot_map" and "subcls_annot_map" option.'
+            )
         # TODO: Change type to parent class of all graphene types.
         # Scalar case
         elif isinstance(compiler, type):

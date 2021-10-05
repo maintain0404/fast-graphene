@@ -20,7 +20,7 @@ class SetDict(UserDict, MutableMapping[Hashable, Any]):
         else:
             self.data[key] = value
 
-    def update(  # type: ignore
+    def update(
         self,
         mapping: Union[MutableMapping[Hashable, Any], Iterable[Tuple[Hashable, Any]]],
         **kwargs: Any,
